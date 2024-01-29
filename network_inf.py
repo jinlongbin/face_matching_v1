@@ -1,7 +1,6 @@
 import sys
 import iresnet
 from collections import OrderedDict
-from termcolor import cprint
 import os
 import torch.nn.functional as F
 import torch.nn as nn
