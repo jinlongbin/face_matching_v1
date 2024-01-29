@@ -7,7 +7,7 @@ import pickle
 import base64
 from io import BytesIO
 import numpy as np
-from PIL import Image
+from PIL import Image, ExifTags
 from tqdm import tqdm
 
 import torch
@@ -64,6 +64,24 @@ def load_base64(base64_string, mode='RGB'):
     이미지 파일을 bytes에서 numpy array로 변환
     """
     image = Image.open(BytesIO(base64.b64decode(base64_string)))
+
+    # Check for and apply EXIF orientation data
+    try:
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation] == 'Orientation':
+                break
+        exif = dict(image._getexif().items())
+
+        if exif[orientation] == 3:
+            image = image.rotate(180, expand=True)
+        elif exif[orientation] == 6:
+            image = image.rotate(270, expand=True)
+        elif exif[orientation] == 8:
+            image = image.rotate(90, expand=True)
+    except (AttributeError, KeyError, IndexError):
+        # No EXIF data or orientation data not found
+        pass
+
     if mode=='RGB':
         image = image.convert('RGB')
     elif mode == 'BGR':
@@ -312,7 +330,7 @@ def visualize(base64_string:bytes, output_dir:str, img_name:str, face_locations:
 
 
 if __name__ == '__main__':
-    class_name = 'class10'
+    class_name = 'class09'
     data_folder = '/home/lulla/data'
     class_folder = os.path.join(data_folder, class_name)
     single_img_dir = os.path.join(class_folder, 'single')
