@@ -102,7 +102,7 @@ def face_detection(base64_string:bytes, face_location:list=None):
             return [], []
         
         for i in range(len(face_locations)):
-            if prob[i] > 0.9:
+            if prob[i] > 0.92:
                 left, top, right, bottom = map(int, face_locations[i])
 
                 h, w = int(bottom) - int(top), int(right) - int(left)
@@ -126,7 +126,8 @@ def face_detection(base64_string:bytes, face_location:list=None):
                     left -= right - image.shape[1]
                     right = image.shape[1]
 
-                face_location.append([top, right, bottom, left])
+                if bottom - top > 60:
+                    face_location.append([top, right, bottom, left])
 
     face_encoding = []
     for location in face_location:
@@ -295,6 +296,7 @@ def face_matching(base64_string:bytes, known_face_encodings:list, tolerance=0.3)
     face_locations, face_encodings = face_detection(base64_string)
 
     face_names = []
+    face_sims = []
     for face_encoding in face_encodings:
         temp = cosine_similarity(known_face_encodings, face_encoding)
         dis = [tolerance] * len(temp)
@@ -306,7 +308,25 @@ def face_matching(base64_string:bytes, known_face_encodings:list, tolerance=0.3)
             name = known_child_ids[match.index(True)]
 
         face_names.append(name)
-    return face_locations, face_names
+        face_sims.append(max(temp))
+
+    # if there has same name in face_names, leave the name based on largest similarity
+    max_scores = {}
+    max_indices = {}
+    for i, (name, sim) in enumerate(zip(face_names, face_sims)):
+        if name is not None:  # Ignore None values
+            if name not in max_scores or sim > max_scores[name]:
+                max_scores[name] = sim
+                max_indices[name] = i
+
+    new_face_names = []
+    for i, name in enumerate(face_names):
+        if name is not None and i != max_indices.get(name, -1):
+            new_face_names.append(None)  # Replace with None if not the maximum score
+        else:
+            new_face_names.append(name)
+
+    return face_locations, new_face_names
 
 
 def visualize(base64_string:bytes, output_dir:str, img_name:str, face_locations:list, child_ids:list):
@@ -343,7 +363,7 @@ if __name__ == '__main__':
     single_child_ids = os.listdir(single_img_dir)
     group_img_names = os.listdir(group_img_dir)
 
-    tolerance = 0.2
+    tolerance = 0.33
 
     print('=== face detection and save data ===')
     for child_id in tqdm(single_child_ids):
